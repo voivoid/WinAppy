@@ -1,0 +1,2 @@
+add_executable(BasicWinApp WIN32 basic_win_app.cpp)
+target_link_libraries(BasicWinApp PRIVATE WinAppy)
