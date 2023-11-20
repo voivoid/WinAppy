@@ -14,7 +14,7 @@ namespace
 std::atomic<trace_level> g_current_level = trace_level::warning;
 }
 
-void set_trace_level(trace_level level)
+void set_trace_level(const trace_level level)
 {
     g_current_level = level;
 }
@@ -24,22 +24,22 @@ trace_level get_trace_level()
     return g_current_level;
 }
 
-void log_message(trace_level level, LPCWSTR msg)
+void log_message(const trace_level level, const LPCWSTR msg)
 {
     if (g_current_level <= level) { ::OutputDebugStringW(msg); }
 }
 
-void debug_message(LPCWSTR msg)
+void debug_message(const LPCWSTR msg)
 {
     log_message(trace_level::debug, msg);
 }
 
-void warning_message(LPCWSTR msg)
+void warning_message(const LPCWSTR msg)
 {
     log_message(trace_level::warning, msg);
 }
 
-void error_message(LPCWSTR msg)
+void error_message(const LPCWSTR msg)
 {
     log_message(trace_level::error, msg);
 }

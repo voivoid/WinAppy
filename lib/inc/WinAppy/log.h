@@ -29,7 +29,7 @@ trace_level get_trace_level();
 class logger
 {
   public:
-    logger(trace_level log_level) : m_log_level(log_level){};
+    logger(const trace_level log_level) : m_log_level(log_level){};
     ~logger()
     {
         m_ss << L'\n';
@@ -44,7 +44,7 @@ class logger
         return *this;
     }
 
-    bool is_empty()
+    bool is_empty() const
     {
         return m_ss.rdbuf()->in_avail();
     }
