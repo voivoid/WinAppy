@@ -4,6 +4,9 @@
 #include "WinAppy/msg_loop.h"
 #include "WinAppy/window.h"
 #include "WinAppy/window_api.h"
+
+#include "WinAppy/log.h"
+
 #include <Windows.h>
 
 #include <cassert>
@@ -52,6 +55,7 @@ class MyWindow : public winappy::CustomWindow
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int)
 {
+    WINAPPY_WARNING_MESSAGE << "Hello, world" << 10 << 20;
     MyWindow wnd;
     const auto created = wnd.try_register_class_and_create(L"CoolWindowClass", CS_HREDRAW | CS_VREDRAW, L"CoolWindow");
     assert(created);

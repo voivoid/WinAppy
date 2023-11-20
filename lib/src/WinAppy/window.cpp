@@ -2,6 +2,7 @@
 
 #include "WinAppy/atom.h"
 #include "WinAppy/dc.h"
+#include "WinAppy/log.h"
 #include "WinAppy/window.h"
 #include "WinAppy/window_api.h"
 
@@ -56,8 +57,10 @@ result<> SubclassedWindow::try_create(const atoms::arg window_class,
 
     handle_ref() = *wnd;
 
-    const WNDPROC wnd_proc = m_thunk.generate_plain_call_callback(this, &SubclassedWindow::wnd_proc_impl);
-    auto old_wnd_proc      = Window::API::try_set_wndproc(*this, wnd_proc);
+    const auto wnd_proc = m_thunk.generate_plain_call_callback(this, &SubclassedWindow::wnd_proc_impl);
+    WINAPPY_RETURN_IF_ERROR(wnd_proc);
+
+    auto old_wnd_proc = Window::API::try_set_wndproc(*this, *wnd_proc);
     WINAPPY_RETURN_IF_ERROR(old_wnd_proc);
 
     m_superclass_wnd_proc = *old_wnd_proc;
@@ -86,9 +89,10 @@ result<> CustomWindow::try_register_class_and_create(const LPCWSTR class_name,
     assert(window_name);
     assert(class_name);
 
-    const auto [ init_wnd_proc, optimized_wnd_proc ] = m_thunk.generate_virtual_call_callbacks(this, &handle_ref());
+    const auto wndprocs = m_thunk.generate_virtual_call_callbacks(this, &handle_ref());
+    WINAPPY_RETURN_IF_ERROR(wndprocs);
 
-    const auto atom = Window::API::try_register_class_ex(class_style, init_wnd_proc, class_name, class_opts);
+    const auto atom = Window::API::try_register_class_ex(class_style, wndprocs->initial, class_name, class_opts);
     WINAPPY_RETURN_IF_ERROR(atom);
 
     const auto wnd = Window::API::try_create_window(*atom, window_style, window_ex_style, window_name, window_opts);
@@ -96,7 +100,7 @@ result<> CustomWindow::try_register_class_and_create(const LPCWSTR class_name,
 
     assert(*wnd == handle());
 
-    WINAPPY_RETURN_IF_ERROR(API::try_update_wnd_proc(*this, optimized_wnd_proc));
+    WINAPPY_RETURN_IF_ERROR(API::try_update_wnd_proc(*this, wndprocs->optimized));
 
     return WINAPPY_SUCCESS;
 }
@@ -110,6 +114,16 @@ LRESULT CALLBACK CustomWindow::wnd_proc(const UINT msg, const WPARAM wParam, con
     {
         switch (msg)
         {
+            case WM_COMMAND:
+            {
+                result = on_command();
+                break;
+            }
+            case WM_PAINT:
+            {
+                result = on_paint();
+                break;
+            }
             case WM_CREATE:
             {
                 result = on_create();
@@ -131,21 +145,11 @@ LRESULT CALLBACK CustomWindow::wnd_proc(const UINT msg, const WPARAM wParam, con
                 handle_ref() = nullptr;
                 break;
             }
-            case WM_COMMAND:
-            {
-                result = on_command();
-                break;
-            }
-            case WM_PAINT:
-            {
-                result = on_paint();
-                break;
-            }
         }
     }
-    catch (const std::exception&)
+    catch (const std::exception& ex)
     {
-        // TODO: log exception
+        WINAPPY_ERROR_MESSAGE << "CustomWindow::wnd_proc has caught an exception; Exception details: " << ex.what();
     }
 
     if (result) return *result;
@@ -161,13 +165,14 @@ std::optional<LRESULT> CustomWindow::on_paint()
 
     if (dc)
     {
-        WINAPPY_ON_SCOPE_EXIT(([ this, &ps ] { Window::API::end_paint(*this, ps); }));
+        WINAPPY_ON_SCOPE_EXIT
+        {
+            Window::API::end_paint(*this, ps);
+        };
+
         paint_proc(*dc);
     }
-    else
-    {
-        // TODO: log failure
-    }
+    else { WINAPPY_ERROR_MESSAGE << "CustomWindow::on_paint got a unexpected BeginPaint error"; }
 
     return 0;
 }

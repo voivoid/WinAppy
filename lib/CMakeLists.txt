@@ -8,7 +8,7 @@ add_library(WinAppy
     inc/WinAppy/gdi.h         src/WinAppy/gdi.cpp
     inc/WinAppy/geo.h
     inc/WinAppy/log.h         src/WinAppy/log.cpp
-                              src/WinAPpy/macros.h
+    inc/WinAPpy/macros.h
     inc/WinAppy/msg_loop.h    src/WinAppy/msg_loop.cpp
                               src/WinAppy/scope_exit.h
                               src/stdafx.h

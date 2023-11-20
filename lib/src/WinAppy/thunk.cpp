@@ -23,12 +23,13 @@ void Thunk::free_trampoline::operator()(void* const p) const
     const BOOL mem_freed = ::VirtualFree(p, 0, MEM_RELEASE);
     if (!mem_freed)
     {
-        // TODO: trace error
+        const auto err = ::GetLastError();
+        WINAPPY_ERROR_MESSAGE << "::VirtualFree failed in Thunk::free_trampoline::operator() with " << err << " error code";
     }
 }
 
 template <typename T>
-WNDPROC Thunk::generate_plain_call_callback(const T* const window, LRESULT (T::*f)(UINT, WPARAM, LPARAM))
+result<WNDPROC> Thunk::generate_plain_call_callback(const T* const window, LRESULT (T::*f)(UINT, WPARAM, LPARAM))
 {
 #ifdef _M_X64
     static const std::byte function_code[] = {
@@ -40,7 +41,7 @@ WNDPROC Thunk::generate_plain_call_callback(const T* const window, LRESULT (T::*
     };
 
     std::byte* code = reinterpret_cast<std::byte*>(::VirtualAlloc(NULL, sizeof(function_code), MEM_COMMIT, PAGE_EXECUTE_READWRITE));
-    WINAPPY_THROW_LAST_ERROR_IF_ZERO(code);  // TODO: get rid of exceptions
+    WINAPPY_RETURN_LAST_ERROR_IF_ZERO(code);
 
     m_trampoline.reset(code);
 
@@ -50,14 +51,14 @@ WNDPROC Thunk::generate_plain_call_callback(const T* const window, LRESULT (T::*
 
     WINAPPY_THROW_LAST_ERROR_IF_FALSE(::FlushInstructionCache(::GetCurrentProcess(), NULL, 0));
 
-    return reinterpret_cast<WNDPROC>(code);
+    return { reinterpret_cast<WNDPROC>(code) };
 #else
 #    error unsupported platform
 #endif
 }
 
 template <typename T>
-std::pair<WNDPROC, WNDPROC> Thunk::generate_virtual_call_callbacks(const T* const window, HWND* const wnd_ptr)
+result<Thunk::generated_wndprocs> Thunk::generate_virtual_call_callbacks(const T* const window, HWND* const wnd_ptr)
 {
 #ifdef _M_X64
     static const std::byte function_code[] = {
@@ -72,7 +73,7 @@ std::pair<WNDPROC, WNDPROC> Thunk::generate_virtual_call_callbacks(const T* cons
     };
 
     std::byte* code = reinterpret_cast<std::byte*>(::VirtualAlloc(NULL, sizeof(function_code), MEM_COMMIT, PAGE_EXECUTE_READWRITE));
-    WINAPPY_THROW_LAST_ERROR_IF_ZERO(code);  // TODO: get rid of exceptions
+    WINAPPY_RETURN_LAST_ERROR_IF_ZERO(code);
 
     m_trampoline.reset(code);
 
@@ -80,9 +81,9 @@ std::pair<WNDPROC, WNDPROC> Thunk::generate_virtual_call_callbacks(const T* cons
     memcpy(code + 2, &wnd_ptr, sizeof(void*));
     memcpy(code + 15, &window, sizeof(void*));
 
-    WINAPPY_THROW_LAST_ERROR_IF_FALSE(::FlushInstructionCache(::GetCurrentProcess(), NULL, 0));
+    WINAPPY_RETURN_LAST_ERROR_IF_FALSE(::FlushInstructionCache(::GetCurrentProcess(), NULL, 0));
 
-    return { reinterpret_cast<WNDPROC>(code), reinterpret_cast<WNDPROC>(code + 13) };
+    return { { reinterpret_cast<WNDPROC>(code), reinterpret_cast<WNDPROC>(code + 13) } };
 #else
 #    error unsupported platform
 #endif
@@ -90,5 +91,5 @@ std::pair<WNDPROC, WNDPROC> Thunk::generate_virtual_call_callbacks(const T* cons
 
 }  // namespace winappy
 
-template WNDPROC winappy::Thunk::generate_plain_call_callback(const SubclassedWindow*, LRESULT (SubclassedWindow::*)(UINT, WPARAM, LPARAM));
-template std::pair<WNDPROC, WNDPROC> winappy::Thunk::generate_virtual_call_callbacks(const CustomWindow*, HWND*);
+template winappy::result<WNDPROC> winappy::Thunk::generate_plain_call_callback(const SubclassedWindow*, LRESULT (SubclassedWindow::*)(UINT, WPARAM, LPARAM));
+template winappy::result<winappy::Thunk::generated_wndprocs> winappy::Thunk::generate_virtual_call_callbacks(const CustomWindow*, HWND*);
