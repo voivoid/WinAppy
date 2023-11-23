@@ -25,9 +25,15 @@ class Button : public Control
 
     void on_click(std::function<void(void)>);
 
+  private:
+    std::optional<LRESULT> try_reflect_notification(UINT msg, WPARAM wParam, LPARAM lParam) override;
+
+    void on_click();
 
   private:
     Window& m_parent;
+
+    std::function<void(void)> m_on_click_handler;
 };
 }  // namespace Controls
 }  // namespace winappy

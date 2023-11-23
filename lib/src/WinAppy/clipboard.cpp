@@ -22,7 +22,7 @@ clipboard& clipboard::operator=(clipboard&& rhs)
 result<clipboard> clipboard::open()
 {
     const auto opened = ::OpenClipboard(NULL);
-    if (!opened) WINAPPY_RETURN_LAST_ERROR("::OpenClipboard failed");
+    if (!opened) WINAPPY_RETURN_LAST_ERROR("clipboard::open failed due to ::OpenClipboard error");
 
     return clipboard{};
 }
@@ -31,7 +31,7 @@ clipboard::~clipboard()
 {
     if (m_opened)
     {
-        BOOL closed = ::CloseClipboard();
+        [[maybe_unused]] BOOL closed = ::CloseClipboard();
         assert(closed);
     }
 }

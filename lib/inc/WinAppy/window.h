@@ -4,6 +4,7 @@
 #include "WinAppy/error.h"
 #include "WinAppy/thunk.h"
 
+#include <memory>
 #include <optional>
 
 #include <windef.h>
@@ -11,6 +12,8 @@
 namespace winappy
 {
 class DC;
+class Layout;
+
 class Window
 {
   public:
@@ -63,18 +66,18 @@ class Window
 class SubclassedWindow : public Window
 {
   public:
-    SubclassedWindow(HWND wnd);
     ~SubclassedWindow();
 
-    result<> try_create(atoms::arg window_class, DWORD style, DWORD ex_style, LPCWSTR window_name, const std::optional<Window::CreationOpts>& window_opts = {});
+    result<> try_create(atoms::arg window_class, DWORD style, LPCWSTR text, Window& parent);
 
   protected:
+    SubclassedWindow(HWND wnd);
     SubclassedWindow();
 
   private:
     LRESULT CALLBACK wnd_proc_impl(const UINT msg, const WPARAM wParam, const LPARAM lParam);
 
-    virtual std::optional<LRESULT> CALLBACK wnd_proc_subclassed(const UINT /*msg*/, const WPARAM /*wParam*/, const LPARAM /*lParam*/)
+    virtual std::optional<LRESULT> wnd_proc_subclassed(const UINT /*msg*/, const WPARAM /*wParam*/, const LPARAM /*lParam*/)
     {
         return {};
     };
@@ -87,32 +90,48 @@ class SubclassedWindow : public Window
 
 class CustomWindow : public Window
 {
+    // wnd_proc virtual member function should be the first one in vtable for correct thunk virtual calls
     virtual LRESULT CALLBACK wnd_proc(const UINT msg, const WPARAM wParam, const LPARAM lParam);
+
     virtual void paint_proc(DC&){};
 
   public:
     ~CustomWindow();
 
-    result<> try_register_class_and_create(LPCWSTR class_name,
-                                           UINT class_style,
-                                           LPCWSTR window_name,
-                                           DWORD window_style                                     = WS_OVERLAPPEDWINDOW,
-                                           DWORD window_ex_style                                  = WS_EX_OVERLAPPEDWINDOW,
-                                           const std::optional<Window::ClassOpts>& class_opts     = {},
-                                           const std::optional<Window::CreationOpts>& window_opts = {});
+    result<> try_register_class_and_create_window(LPCWSTR class_name_to_register,
+                                                  LPCWSTR window_name,
+                                                  UINT class_style                                       = CS_HREDRAW | CS_VREDRAW,
+                                                  DWORD window_style                                     = WS_OVERLAPPEDWINDOW,
+                                                  DWORD window_ex_style                                  = WS_EX_OVERLAPPEDWINDOW,
+                                                  const std::optional<Window::ClassOpts>& class_opts     = {},
+                                                  const std::optional<Window::CreationOpts>& window_opts = {});
+
+    Layout* set_layout(Layout& new_layout);
+    Layout* get_layout() const;
+    void clear_layout();
+
+  private:
+    std::optional<LRESULT> try_reflect_notification(UINT, WPARAM, LPARAM);
+    void update_layout(int width, int height);
+    void handle_child_creation(HWND);
+    void handle_child_destruction(HWND);
 
   private:
     // clang-format off
-    virtual std::optional<LRESULT> on_pre_create() { return {}; }  // WM_NCCREATE
-    virtual std::optional<LRESULT> on_create() { return {};}       // WM_CREATE    
-    virtual std::optional<LRESULT> on_paint();                     // WM_PAINT;
-    virtual std::optional<LRESULT> on_command() { return {};};     // WM_COMMAND;
-    virtual std::optional<LRESULT> on_destroy() { return 0;}       // WM_DESTROY;
-    virtual std::optional<LRESULT> on_post_destroy() { return 0;}  // WM_NCDESTROY;
+    virtual std::optional<LRESULT> on_pre_create() { return {}; }     // WM_NCCREATE
+    virtual std::optional<LRESULT> on_create() { return {};}          // WM_CREATE    
+    virtual std::optional<LRESULT> on_paint();                        // WM_PAINT
+    virtual std::optional<LRESULT> on_command() { return {};};        // WM_COMMAND
+    virtual std::optional<LRESULT> on_size(size_t /*new_width*/, size_t /*new_height*/) { return {}; };       // WM_SIZE
+    virtual std::optional<LRESULT> on_close() { return {}; };         // WM_CLOSE
+    virtual std::optional<LRESULT> on_destroy() { return 0;}          // WM_DESTROY
+    virtual std::optional<LRESULT> on_post_destroy() { return 0;}     // WM_NCDESTROY
+    virtual std::optional<LRESULT> on_parent_notify() { return {}; }; // WM_PARENTNOTIFY
     // clang-format on
 
   private:
     Thunk m_thunk;
+    Layout* m_layout;
 };
 
 }  // namespace winappy

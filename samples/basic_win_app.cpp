@@ -1,6 +1,7 @@
 #include "WinAppy/button.h"
 #include "WinAppy/dc.h"
 #include "WinAppy/gdi.h"
+#include "WinAppy/layout.h"
 #include "WinAppy/msg_loop.h"
 #include "WinAppy/window.h"
 #include "WinAppy/window_api.h"
@@ -16,13 +17,18 @@ namespace
 class MyWindow : public winappy::CustomWindow
 {
   public:
-    MyWindow() : m_btn(*this) {}
+    MyWindow() : m_button(*this) {}
 
   private:
     virtual std::optional<LRESULT> on_create() override
     {
-        m_btn.create(L"PRESS ME!");
-        m_btn.on_click([ this ]() { ::MessageBoxW(handle(), L"", L"", MB_OK); });
+        m_button.create(L"PRESS ME!");
+        m_button.on_click([ this ]() { ::MessageBoxW(handle(), L"CLICKED!", L"I'M A BUTTON", MB_OK); });
+
+        m_layout.set_padding(20);
+        m_layout.set_control(m_button);
+        set_layout(m_layout);
+
         return 0;
     }
 
@@ -49,19 +55,18 @@ class MyWindow : public winappy::CustomWindow
     }
 
   private:
-    winappy::Controls::Button m_btn;
+    winappy::layouts::Fill m_layout;
+    winappy::Controls::Button m_button;
 };
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int)
 {
-    WINAPPY_WARNING_MESSAGE << "Hello, world" << 10 << 20;
     MyWindow wnd;
-    const auto created = wnd.try_register_class_and_create(L"CoolWindowClass", CS_HREDRAW | CS_VREDRAW, L"CoolWindow");
+    const auto created = wnd.try_register_class_and_create_window(L"CoolWindowClass", L"CoolWindow");
     assert(created);
 
     using WinApi = winappy::Window::API;
-
     WinApi::try_update_window(wnd);
     WinApi::try_show_window(wnd, SW_SHOW);
 

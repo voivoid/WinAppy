@@ -25,7 +25,10 @@ struct Window::API
 
     static result<> try_destroy_window(Window& w);
     static result<> try_update_window(Window& w);
+    static result<> try_set_window_pos(Window& w, const rectangle& rect, UINT flags);
+    static result<> try_move_window(Window& w, const rectangle& rect, bool repaint = true);
     static result<bool> try_show_window(Window& w, int show_mode);
+
 
     static result<HWND>
         try_create_window(atoms::arg window_class, DWORD style, DWORD ex_style, LPCWSTR window_name, const std::optional<Window::CreationOpts>& opts = {});

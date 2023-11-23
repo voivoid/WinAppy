@@ -18,7 +18,7 @@ result<ATOM> add_atom(const LPCWSTR string)
 
     constexpr auto* add_atom = global ? ::GlobalAddAtomW : ::AddAtomW;
     ATOM ATOM                = add_atom(string);
-    if (ATOM == 0) WINAPPY_RETURN_LAST_ERROR(global ? "::GlobalAddAtomW failed" : "::AddAtomW failed");
+    if (ATOM == 0) WINAPPY_RETURN_LAST_ERROR(global ? "add_atom failed due to ::GlobalAddAtomW error" : "add_atom failed due to ::AddAtomW error");
 
     return { ATOM };
 }
@@ -26,7 +26,7 @@ result<ATOM> add_atom(const LPCWSTR string)
 template <bool global = false>
 result<ATOM> add_atom(const std::uint16_t n)
 {
-    if (n == 0 || n >= MAXINTATOM) throw std::invalid_argument("invalid integer atom value");
+    if (n == 0 || n >= MAXINTATOM) throw std::invalid_argument("invalid integer atom value");  // TODO: get rid of exception
 
     return add_atom<global>(MAKEINTATOM(n));
 }
@@ -36,7 +36,7 @@ result<> delete_atom(const ATOM ATOM)
 {
     constexpr auto* delete_atom = global ? ::GlobalDeleteAtom : ::DeleteAtom;
     const bool deleted          = delete_atom(ATOM) == 0;
-    if (!deleted) WINAPPY_RETURN_LAST_ERROR(global ? "::GlobalDeleteAtom failed" : "::DeleteAtom failed");
+    if (!deleted) WINAPPY_RETURN_LAST_ERROR(global ? "delete_atom failed due to ::GlobalDeleteAtom error" : "delete_atom failed due to ::DeleteAtom error");
 
     return WINAPPY_SUCCESS;
 }
@@ -76,7 +76,7 @@ std::optional<std::wstring> get_atom_string(const ATOM ATOM)
 result<> init_atom_table(const std::uint32_t buckets)
 {
     const bool initialized = ::InitAtomTable(buckets) != 0;
-    if (!initialized) WINAPPY_RETURN_LAST_ERROR("::InitAtomTable failed");
+    if (!initialized) WINAPPY_RETURN_LAST_ERROR("init_atom_table failed due to ::InitAtomTable error");
 
     return WINAPPY_SUCCESS;
 }

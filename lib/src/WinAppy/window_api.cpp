@@ -22,7 +22,7 @@ result<> Window::API::try_update_window(Window& w)
 result<bool> Window::API::try_show_window(Window& w, const int show_mode)
 {
     const BOOL res = ::ShowWindow(w.handle(), show_mode);
-    if (::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("::ShowWindow failed");
+    if (::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("try_show_window failed due to ::ShowWindow error");
 
     return { res };
 }
@@ -32,7 +32,7 @@ result<WNDPROC> Window::API::try_update_wnd_proc(Window& w, const WNDPROC wnd_pr
     ::SetLastError(0);
 
     const auto prev_value = SubclassWindow(w.handle(), wnd_proc);
-    if (::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("::SubclassWindow failed");
+    if (::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("try_update_wnd_proc failed due to ::SubclassWindow error");
 
     return { prev_value };
 }
@@ -48,7 +48,7 @@ result<ATOM> Window::API::try_register_class_ex(const UINT style, const WNDPROC 
                           .lpfnWndProc   = wnd_proc,
                           .cbClsExtra    = has_opts ? opts->class_extra_bytes : 0,
                           .cbWndExtra    = has_opts ? opts->wnd_extra_bytes : 0,
-                          .hInstance     = has_opts ? opts->instance : nullptr,
+                          .hInstance     = has_opts ? opts->instance : ::GetModuleHandle(nullptr),
                           .hIcon         = has_opts ? opts->icon : ::LoadIcon(nullptr, IDI_APPLICATION),
                           .hCursor       = has_opts ? opts->cursor : ::LoadCursor(nullptr, IDC_ARROW),
                           .hbrBackground = has_opts ? opts->background : GetStockBrush(WHITE_BRUSH),
@@ -57,7 +57,7 @@ result<ATOM> Window::API::try_register_class_ex(const UINT style, const WNDPROC 
                           .hIconSm       = has_opts ? opts->icon_small : ::LoadIcon(nullptr, IDI_APPLICATION) };
 
     ATOM window_class = ::RegisterClassEx(&wcx);
-    if (window_class == 0) WINAPPY_RETURN_LAST_ERROR("::RegisterClassEx failed");
+    if (window_class == 0) WINAPPY_RETURN_LAST_ERROR("try_register_class_ex failed due to ::RegisterClassEx error");
 
     return { window_class };
 }
@@ -112,7 +112,7 @@ result<DC> Window::API::try_begin_paint(Window& w, PAINTSTRUCT& ps)
 
 void Window::API::end_paint(Window& w, PAINTSTRUCT& ps)
 {
-    const BOOL result = ::EndPaint(w.handle(), &ps);
+    [[maybe_unused]] const BOOL result = ::EndPaint(w.handle(), &ps);
     assert(result);  // result should be always non-zero
 }
 
@@ -127,7 +127,7 @@ result<rectangle> Window::API::try_get_client_rect(const Window& w)
 result<size_t> Window::API::try_get_id(const Window& w)
 {
     LONG_PTR id = ::GetWindowLongPtr(w.handle(), GWLP_ID);
-    if (id == 0 && ::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("::GetWindowLongPtr(GWLP_ID) failed");
+    if (id == 0 && ::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("try_get_id failed due to ::GetWindowLongPtr(GWLP_ID) error");
 
     return { static_cast<size_t>(id) };
 }
@@ -135,7 +135,7 @@ result<size_t> Window::API::try_get_id(const Window& w)
 result<HINSTANCE> Window::API::try_get_instance(const Window& w)
 {
     LONG_PTR instance = ::GetWindowLongPtr(w.handle(), GWLP_HINSTANCE);
-    if (instance == 0 && ::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("::GetWindowLongPtr(GWLP_HINSTANCE) failed");
+    if (instance == 0 && ::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("try_get_instance failed due to ::GetWindowLongPtr(GWLP_HINSTANCE) error");
 
     return { reinterpret_cast<HINSTANCE>(instance) };
 }
@@ -143,9 +143,33 @@ result<HINSTANCE> Window::API::try_get_instance(const Window& w)
 result<WNDPROC> Window::API::try_set_wndproc(Window& w, WNDPROC wnd_proc)
 {
     LONG_PTR prev_wnd_proc = ::SetWindowLongPtr(w.handle(), GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wnd_proc));
-    if (prev_wnd_proc == 0 && ::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("::GetWindowLongPtr(GWLP_WNDPROC) failed");
+    if (prev_wnd_proc == 0 && ::GetLastError() != 0) WINAPPY_RETURN_LAST_ERROR("try_set_wndproc failed due to ::GetWindowLongPtr(GWLP_WNDPROC) erro");
 
     return { reinterpret_cast<WNDPROC>(prev_wnd_proc) };
+}
+
+result<> Window::API::try_set_window_pos(Window& w, const rectangle& rect, const UINT flags)
+{
+    const auto width  = rect.right_bottom.x - rect.left_top.x;
+    const auto height = rect.right_bottom.y - rect.left_top.y;
+
+    BOOL success = ::SetWindowPos(w.handle(), nullptr, rect.left_top.x, rect.left_top.y, width, height, flags);
+
+    if (!success) WINAPPY_RETURN_LAST_ERROR("try_set_window_pos failed due to SetWindowPos error");
+
+    return WINAPPY_SUCCESS;
+}
+
+result<> Window::API::try_move_window(Window& w, const rectangle& rect, const bool repaint)
+{
+    const auto width  = rect.right_bottom.x - rect.left_top.x;
+    const auto height = rect.right_bottom.y - rect.left_top.y;
+
+    BOOL success = ::MoveWindow(w.handle(), rect.left_top.x, rect.left_top.y, width, height, repaint);
+
+    if (!success) WINAPPY_RETURN_LAST_ERROR("try_move_window failed due to ::MoveWindow error");
+
+    return WINAPPY_SUCCESS;
 }
 
 }  // namespace winappy

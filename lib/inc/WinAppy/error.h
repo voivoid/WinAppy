@@ -46,7 +46,7 @@ struct is_result_t<result<T>> : std::true_type
     }
 
 #define WINAPPY_SUCCESS                                                                                                                                        \
-    result<> {}
+    winappy::result<> {}
 #define WINAPPY_RETURN_LAST_ERROR(descr) return winappy::make_last_error(descr);
 #define WINAPPY_RETURN_LAST_ERROR_IF_FALSE(expr)                                                                                                               \
     if (!(expr)) WINAPPY_RETURN_LAST_ERROR(#expr " failed")
